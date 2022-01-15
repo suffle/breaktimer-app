@@ -1,5 +1,9 @@
 @import "~@blueprintjs/core/lib/scss/variables.scss";
 
+.container {
+  overflow: auto;
+  height: 100%;
+}
 .settings {
   margin: $pt-grid-size * 2;
 }

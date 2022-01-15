@@ -1,10 +1,15 @@
 import moment, { Moment } from "moment";
 import { PowerMonitor } from "electron";
-import { Settings, NotificationType } from "../../types/settings";
+import {
+  IWorkingHoursDays,
+  IWorkingHoursDaySettings,
+  NotificationType,
+  SETTING_TYPES,
+} from "../../types/settings";
 import { BreakTime } from "../../types/breaks";
 import { IpcChannel } from "../../types/ipc";
 import { sendIpc } from "./ipc";
-import { getSettings } from "./store";
+import { getSettings } from "../../lib/store";
 import { buildTray } from "./tray";
 import { showNotification } from "./notifications";
 import { createBreakWindows } from "./windows";
@@ -22,8 +27,8 @@ export function getBreakTime(): BreakTime {
 }
 
 export function getBreakLength(): Date {
-  const settings: Settings = getSettings();
-  return settings.breakLength;
+  const breakSettings = getSettings(SETTING_TYPES.BREAK_SETTINGS);
+  return breakSettings?.breakLength;
 }
 
 function zeroPad(n: number) {
@@ -38,19 +43,19 @@ function getSeconds(date: Date): number {
 }
 
 function getIdleResetSeconds(): number {
-  const settings: Settings = getSettings();
-  return getSeconds(new Date(settings.idleResetLength));
+  const idleResetSettings = getSettings(SETTING_TYPES.IDLE_RESET_SETTINGS);
+  return getSeconds(new Date(idleResetSettings?.idleResetLength));
 }
 
 function getBreakSeconds(): number {
-  const settings: Settings = getSettings();
-  return getSeconds(new Date(settings.breakFrequency));
+  const breakSettings = getSettings(SETTING_TYPES.BREAK_SETTINGS);
+  return getSeconds(new Date(breakSettings?.breakFrequency));
 }
 
 function createIdleNotification() {
-  const settings: Settings = getSettings();
+  const idleResetSettings = getSettings(SETTING_TYPES.IDLE_RESET_SETTINGS);
 
-  if (!settings.idleResetEnabled || idleStart === null) {
+  if (!idleResetSettings?.idleResetEnabled || idleStart === null) {
     return;
   }
 
@@ -68,7 +73,7 @@ function createIdleNotification() {
     idleMinutes -= idleHours * 60;
   }
 
-  if (settings.idleResetNotification) {
+  if (idleResetSettings?.idleResetNotification) {
     showNotification(
       "Break countdown reset",
       `Idle for ${zeroPad(idleHours)}:${zeroPad(idleMinutes)}:${zeroPad(
@@ -79,7 +84,7 @@ function createIdleNotification() {
 }
 
 export function createBreak(isPostpone = false): void {
-  const settings: Settings = getSettings();
+  const breakSettings = getSettings(SETTING_TYPES.BREAK_SETTINGS);
 
   if (idleStart) {
     createIdleNotification();
@@ -88,7 +93,7 @@ export function createBreak(isPostpone = false): void {
   }
 
   const freq = new Date(
-    isPostpone ? settings.postponeLength : settings.breakFrequency
+    isPostpone ? breakSettings?.postponeLength : breakSettings?.breakFrequency
   );
 
   breakTime = moment()
@@ -108,8 +113,11 @@ export function endPopupBreak(): void {
 }
 
 export function getAllowPostpone(): boolean {
-  const settings = getSettings();
-  return !settings.postponeLimit || postponedCount < settings.postponeLimit;
+  const breakSettings = getSettings(SETTING_TYPES.BREAK_SETTINGS);
+  return (
+    !breakSettings?.postponeLimit ||
+    postponedCount < breakSettings?.postponeLimit
+  );
 }
 
 export function postponeBreak(): void {
@@ -121,77 +129,74 @@ export function postponeBreak(): void {
 function doBreak(): void {
   havingBreak = true;
 
-  const settings: Settings = getSettings();
+  const { breakSettings, customizationSettings } = getSettings();
 
-  if (settings.notificationType === NotificationType.Notification) {
-    showNotification(settings.breakTitle, settings.breakMessage);
-    if (settings.gongEnabled) {
+  if (breakSettings?.notificationType === NotificationType.Notification) {
+    showNotification(
+      customizationSettings?.breakTitle,
+      customizationSettings?.breakMessage
+    );
+    if (breakSettings?.gongEnabled) {
       sendIpc(IpcChannel.GongStartPlay);
     }
     havingBreak = false;
     createBreak();
   }
 
-  if (settings.notificationType === NotificationType.Popup) {
+  if (breakSettings?.notificationType === NotificationType.Popup) {
     createBreakWindows();
   }
 }
 
-interface Days {
-  0: boolean;
-  1: boolean;
-  2: boolean;
-  3: boolean;
-  4: boolean;
-  5: boolean;
-  6: boolean;
-}
-
 export function checkInWorkingHours(): boolean {
-  const settings: Settings = getSettings();
+  const workingHoursSettings = getSettings(
+    SETTING_TYPES.WORKING_HOURS_SETTINGS
+  );
 
-  if (!settings.workingHoursEnabled) {
+  if (!workingHoursSettings?.workingHoursEnabled) {
     return true;
   }
 
   const now = moment();
 
-  const days: Days = {
-    0: settings.workingHoursSunday,
-    1: settings.workingHoursMonday,
-    2: settings.workingHoursTuesday,
-    3: settings.workingHoursWednesday,
-    4: settings.workingHoursThursday,
-    5: settings.workingHoursFriday,
-    6: settings.workingHoursSaturday,
-  };
+  const days: IWorkingHoursDays = workingHoursSettings?.workingDays;
+  const currentDayOfWeek = now.day() === 0 ? 6 : now.day() - 1;
+  const currentDay = days[
+    currentDayOfWeek as keyof IWorkingHoursDays
+  ] as IWorkingHoursDaySettings;
 
-  const isWorkingDay = days[now.day() as keyof Days];
-
-  if (!isWorkingDay) {
+  if (!currentDay.active) {
     return false;
   }
 
-  let hoursFrom: Date | Moment = new Date(settings.workingHoursFrom);
-  let hoursTo: Date | Moment = new Date(settings.workingHoursTo);
-  hoursFrom = moment()
-    .set("hours", hoursFrom.getHours())
-    .set("minutes", hoursFrom.getMinutes())
-    .set("seconds", 0);
-  hoursTo = moment()
-    .set("hours", hoursTo.getHours())
-    .set("minutes", hoursTo.getMinutes())
-    .set("seconds", 0);
+  const workingHours = currentDay.customTimes
+    ? currentDay.workingHours
+    : workingHoursSettings.workingHours;
 
-  if (now < hoursFrom) {
-    return false;
-  }
+  const inWorkHours = workingHours.some((hours) => {
+    let hoursFrom: Date | Moment = new Date(hours.from);
+    let hoursTo: Date | Moment = new Date(hours.to);
+    hoursFrom = moment()
+      .set("hours", hoursFrom.getHours())
+      .set("minutes", hoursFrom.getMinutes())
+      .set("seconds", 0);
+    hoursTo = moment()
+      .set("hours", hoursTo.getHours())
+      .set("minutes", hoursTo.getMinutes())
+      .set("seconds", 0);
 
-  if (now > hoursTo) {
-    return false;
-  }
+    if (now < hoursFrom) {
+      return false;
+    }
 
-  return true;
+    if (now > hoursTo) {
+      return false;
+    }
+
+    return true;
+  });
+
+  return inWorkHours;
 }
 
 enum IdleState {
@@ -202,7 +207,7 @@ enum IdleState {
 }
 
 export function checkIdle(): boolean {
-  const settings: Settings = getSettings();
+  const idleResetSettings = getSettings(SETTING_TYPES.IDLE_RESET_SETTINGS);
 
   const state: IdleState = powerMonitor.getSystemIdleState(
     getIdleResetSeconds()
@@ -222,7 +227,7 @@ export function checkIdle(): boolean {
 
   lockStart = null;
 
-  if (!settings.idleResetEnabled) {
+  if (!idleResetSettings?.idleResetEnabled) {
     return false;
   }
 
@@ -230,11 +235,13 @@ export function checkIdle(): boolean {
 }
 
 function checkShouldHaveBreak(): boolean {
-  const settings: Settings = getSettings();
+  const breakSettings = getSettings(SETTING_TYPES.BREAK_SETTINGS);
   const inWorkingHours = checkInWorkingHours();
   const idle = checkIdle();
 
-  return !havingBreak && settings.breaksEnabled && inWorkingHours && !idle;
+  return (
+    !havingBreak && breakSettings?.breaksEnabled && inWorkingHours && !idle
+  );
 }
 
 function checkBreak(): void {
@@ -312,9 +319,9 @@ let tickInterval: NodeJS.Timeout;
 export function initBreaks(): void {
   powerMonitor = require("electron").powerMonitor;
 
-  const settings: Settings = getSettings();
+  const breakSettings = getSettings(SETTING_TYPES.BREAK_SETTINGS);
 
-  if (settings.breaksEnabled) {
+  if (breakSettings?.breaksEnabled) {
     createBreak();
   }
 

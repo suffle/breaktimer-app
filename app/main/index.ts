@@ -8,7 +8,7 @@ import {
   getAppInitialized,
   setAppInitialized,
   setBreaksEnabled,
-} from "./lib/store";
+} from "../lib/store";
 import { createSoundsWindow, createSettingsWindow } from "./lib/windows";
 import { setAutoLauch } from "./lib/auto-launch";
 import { showNotification } from "./lib/notifications";

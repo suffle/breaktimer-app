@@ -2,7 +2,7 @@ import path from "path";
 import { app, screen, BrowserWindow } from "electron";
 import log from "electron-log";
 import { endPopupBreak } from "./breaks";
-import { getSettings } from "./store";
+import { getSettings } from "../../lib/store";
 
 let settingsWindow: BrowserWindow | null = null;
 let soundsWindow: BrowserWindow | null = null;
@@ -80,7 +80,7 @@ export function createSoundsWindow(): void {
 }
 
 export function createBreakWindows(): void {
-  const settings = getSettings();
+  const { customizationSettings } = getSettings();
 
   const displays = screen.getAllDisplays();
   let created = 0;
@@ -127,7 +127,7 @@ export function createBreakWindows(): void {
         throw new Error('"breakWindow" is not defined');
       }
 
-      if (settings.showBackdrop) {
+      if (customizationSettings.showBackdrop) {
         breakWindow.setSize(display.bounds.width, display.bounds.height);
         breakWindow.setPosition(display.bounds.x, display.bounds.y);
       }

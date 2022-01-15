@@ -2,8 +2,7 @@ import path from "path";
 import moment from "moment";
 import { app, dialog, Menu, Tray } from "electron";
 import packageJson from "../../../package.json";
-import { Settings } from "../../types/settings";
-import { getSettings, setSettings } from "./store";
+import { getSettings, setSettings } from "../../lib/store";
 import { createSettingsWindow } from "./windows";
 import {
   getBreakTime,
@@ -12,6 +11,7 @@ import {
   startBreakNow,
   createBreak,
 } from "./breaks";
+import { SETTING_TYPES } from "../../types/settings";
 
 let tray: Tray;
 let lastMinsLeft = 0;
@@ -43,12 +43,15 @@ export function buildTray(): void {
     }
   }
 
-  let settings: Settings = getSettings();
-  const breaksEnabled = settings.breaksEnabled;
+  const breakSettings = getSettings(SETTING_TYPES.BREAK_SETTINGS);
+  const breaksEnabled = breakSettings?.breaksEnabled;
 
   const setBreaksEnabled = (breaksEnabled: boolean): void => {
-    settings = getSettings();
-    setSettings({ ...settings, breaksEnabled });
+    const { breakSettings, ...settings } = getSettings();
+    setSettings({
+      ...settings,
+      breakSettings: { ...breakSettings, breaksEnabled },
+    });
     buildTray();
   };
 

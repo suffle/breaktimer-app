@@ -4,7 +4,7 @@ import { Settings } from "../../types/settings";
 import { IpcChannel } from "../../types/ipc";
 import { getWindows } from "./windows";
 import { getBreakLength, getAllowPostpone, postponeBreak } from "./breaks";
-import { getSettings, setSettings } from "./store";
+import { getSettings, setSettings } from "../../lib/store";
 
 export function sendIpc(channel: IpcChannel, ...args: unknown[]): void {
   const windows: BrowserWindow[] = getWindows();
