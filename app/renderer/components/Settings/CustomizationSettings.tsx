@@ -67,7 +67,7 @@ const CustomizationSettings: FC<CustomizationSettingsProps> = ({
           label="Show backdrop"
           checked={settings.showBackdrop}
           onChange={(e) => onChange("showBackdrop")(e.currentTarget.checked)}
-          disabled={!isBreaksEnabled || !disableBackdropChange}
+          disabled={!isBreaksEnabled || disableBackdropChange}
         />
       </FormGroup>
       <FormGroup label="Backdrop color">
