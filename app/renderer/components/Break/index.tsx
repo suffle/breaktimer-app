@@ -77,6 +77,11 @@ const Break: FC = () => {
     setClosing(true);
   }, []);
 
+  const handleSetDnd = React.useCallback(async (until) => {
+    await ipcRenderer.invokeDnd(until);
+    setClosing(true);
+  }, []);
+
   const handleSkipBreak = React.useCallback(() => {
     setClosing(true);
   }, []);
@@ -131,6 +136,7 @@ const Break: FC = () => {
                 breakTitle={settings.customizationSettings.breakTitle}
                 onCountdownOver={handleCountdownOver}
                 onPostponeBreak={handlePostponeBreak}
+                onSetDnd={handleSetDnd}
                 onSkipBreak={handleSkipBreak}
                 postponeBreakEnabled={
                   settings.breakSettings.postponeBreakEnabled && allowPostpone

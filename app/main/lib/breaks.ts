@@ -13,6 +13,7 @@ import { getSettings } from "../../lib/store";
 import { buildTray } from "./tray";
 import { showNotification } from "./notifications";
 import { createBreakWindows } from "./windows";
+import { checkDnd } from "./dnd";
 
 let powerMonitor: PowerMonitor;
 let breakTime: BreakTime = null;
@@ -238,9 +239,14 @@ function checkShouldHaveBreak(): boolean {
   const breakSettings = getSettings(SETTING_TYPES.BREAK_SETTINGS);
   const inWorkingHours = checkInWorkingHours();
   const idle = checkIdle();
+  const isDnd = checkDnd();
 
   return (
-    !havingBreak && breakSettings?.breaksEnabled && inWorkingHours && !idle
+    !havingBreak &&
+    breakSettings?.breaksEnabled &&
+    inWorkingHours &&
+    !idle &&
+    !isDnd
   );
 }
 

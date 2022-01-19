@@ -1,9 +1,18 @@
 import React, { FC, useEffect, useState } from "react";
 import moment from "moment";
-import { Button, Spinner, ControlGroup, ButtonGroup } from "@blueprintjs/core";
+import {
+  Button,
+  Spinner,
+  ControlGroup,
+  ButtonGroup,
+  Menu,
+  MenuItem,
+} from "@blueprintjs/core";
+import { Popover2 as Popover } from "@blueprintjs/popover2";
 import { useSpring, animated, config } from "react-spring";
 import styles from "./index.scss";
 import { TICK_MS } from "./index";
+import { DND_UNTIL } from "../../../types/dnd";
 
 const COUNTDOWN_SECS = 10;
 
@@ -11,6 +20,7 @@ interface BreakCountdownProps {
   breakTitle: string;
   onCountdownOver: () => void;
   onPostponeBreak: () => void;
+  onSetDnd: (until: number | DND_UNTIL) => void;
   onSkipBreak: () => void;
   postponeBreakEnabled: boolean;
   skipBreakEnabled: boolean;
@@ -21,6 +31,7 @@ const BreakCountdown: FC<BreakCountdownProps> = ({
   breakTitle,
   onCountdownOver,
   onPostponeBreak,
+  onSetDnd,
   onSkipBreak,
   postponeBreakEnabled,
   skipBreakEnabled,
@@ -62,6 +73,17 @@ const BreakCountdown: FC<BreakCountdownProps> = ({
     return null;
   }
 
+  const DndMenu = (
+    <Menu key="menu">
+      <MenuItem text="For 1 Hour" onClick={() => onSetDnd(60)} />
+      <MenuItem text="For 2 Hours" onClick={() => onSetDnd(120)} />
+      <MenuItem
+        text="Until tomorrow"
+        onClick={() => onSetDnd(DND_UNTIL.TOMORROW)}
+      />
+    </Menu>
+  );
+
   return (
     <animated.div className={styles.breakCountdown} style={fadeIn}>
       <h2
@@ -71,6 +93,16 @@ const BreakCountdown: FC<BreakCountdownProps> = ({
       {(skipBreakEnabled || postponeBreakEnabled) && (
         <ControlGroup>
           <ButtonGroup>
+            <Popover content={DndMenu} minimal={true} placement={"bottom"}>
+              <Button
+                className={styles.actionButton}
+                rightIcon="caret-down"
+                outlined
+                style={{ color: textColor }}
+              >
+                Dnd
+              </Button>
+            </Popover>
             {skipBreakEnabled && (
               <Button
                 className={styles.actionButton}

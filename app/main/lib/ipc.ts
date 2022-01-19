@@ -5,6 +5,8 @@ import { IpcChannel } from "../../types/ipc";
 import { getWindows } from "./windows";
 import { getBreakLength, getAllowPostpone, postponeBreak } from "./breaks";
 import { getSettings, setSettings } from "../../lib/store";
+import { DND_UNTIL } from "app/types/dnd";
+import { createDnd } from "./dnd";
 
 export function sendIpc(channel: IpcChannel, ...args: unknown[]): void {
   const windows: BrowserWindow[] = getWindows();
@@ -28,6 +30,11 @@ ipcMain.handle(IpcChannel.AllowPostponeGet, (): boolean => {
 ipcMain.handle(IpcChannel.BreakPostpone, (): void => {
   log.info(IpcChannel.BreakPostpone);
   postponeBreak();
+});
+
+ipcMain.handle(IpcChannel.Dnd, (_event, until: number | DND_UNTIL): void => {
+  log.info(IpcChannel.Dnd);
+  createDnd(until);
 });
 
 ipcMain.handle(IpcChannel.GongStartPlay, (): void => {

@@ -14,6 +14,9 @@ process.once("loaded", () => {
     invokeBreakPostpone: () => {
       return ipcRenderer.invoke("BREAK_POSTPONE");
     },
+    invokeDnd: (until) => {
+      return ipcRenderer.invoke("DND", until);
+    },
     invokeGetAllowPostpone: () => {
       return ipcRenderer.invoke("ALLOW_POSTPONE_GET");
     },

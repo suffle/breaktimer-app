@@ -1,5 +1,6 @@
 declare const ipcRenderer: {
   invokeBreakPostpone: () => Promise<void>;
+  invokeDnd: (until: number) => Promise<void>;
   invokeGetAllowPostpone: () => Promise<boolean>;
   invokeGetBreakLength: () => Promise<Date>;
   invokeGetSettings: () => Promise<unknown>;

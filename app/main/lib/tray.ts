@@ -1,6 +1,6 @@
 import path from "path";
-import moment from "moment";
-import { app, dialog, Menu, Tray } from "electron";
+import moment, { Moment } from "moment";
+import { app, dialog, Menu, MenuItemConstructorOptions, Tray } from "electron";
 import packageJson from "../../../package.json";
 import { getSettings, setSettings } from "../../lib/store";
 import { createSettingsWindow } from "./windows";
@@ -12,9 +12,15 @@ import {
   createBreak,
 } from "./breaks";
 import { SETTING_TYPES } from "../../types/settings";
+import { createDnd, destroyDnd, getDndTime } from "./dnd";
+import { MinutesLeft } from "../../types/tray";
+import { DND_UNTIL } from "../../types/dnd";
 
 let tray: Tray;
-let lastMinsLeft = 0;
+const lastMinsLeftObj: MinutesLeft = {
+  break: 0,
+  dnd: 0,
+};
 
 export function buildTray(): void {
   if (!tray) {
@@ -73,21 +79,38 @@ export function buildTray(): void {
   const breakTime = getBreakTime();
   const inWorkingHours = checkInWorkingHours();
   const idle = checkIdle();
-  const minsLeft = breakTime?.diff(moment(), "minutes");
+  const dndTime = getDndTime();
+  const dndMinsLeft = dndTime?.diff(moment(), "minutes");
+  const breakMinsLeft = breakTime?.diff(moment(), "minutes");
 
   let nextBreak = "";
+  let dndFor = "";
 
-  if (minsLeft !== undefined) {
-    if (minsLeft > 1) {
-      nextBreak = `Next break in ${minsLeft} minutes`;
-    } else if (minsLeft === 1) {
+  if (breakMinsLeft !== undefined) {
+    if (breakMinsLeft > 1) {
+      nextBreak = `Next break in ${breakMinsLeft} minutes`;
+    } else if (breakMinsLeft === 1) {
       nextBreak = `Next break in 1 minute`;
     } else {
       nextBreak = `Next break in less than a minute`;
     }
   }
 
-  const contextMenu = Menu.buildFromTemplate([
+  if (dndMinsLeft !== undefined && dndMinsLeft > 0) {
+    const hoursLeft = Math.floor(dndMinsLeft / 60);
+    const hourString =
+      hoursLeft > 1 ? `${hoursLeft} hours` : `${hoursLeft} hours,`;
+    const minsLeft = dndMinsLeft % 60;
+    const minString =
+      minsLeft > 1 ? `${minsLeft} minutes` : `${minsLeft} minute`;
+    dndFor = `Disabled for ${hoursLeft > 0 ? hourString : ""} ${minString}`;
+  } else {
+    dndFor = "";
+  }
+
+  const isDnd = dndMinsLeft !== undefined && dndMinsLeft > 0;
+
+  const menuItems: MenuItemConstructorOptions[] = [
     {
       label: nextBreak,
       visible: breakTime !== null && inWorkingHours,
@@ -96,6 +119,11 @@ export function buildTray(): void {
     {
       label: `Outside of working hours`,
       visible: !inWorkingHours,
+      enabled: false,
+    },
+    {
+      label: dndFor,
+      visible: isDnd,
       enabled: false,
     },
     {
@@ -118,28 +146,70 @@ export function buildTray(): void {
       visible: breakTime !== null && inWorkingHours,
       click: createBreak.bind(null, false),
     },
+    {
+      label: "Do not disturb",
+      visible: breaksEnabled,
+      submenu: Menu.buildFromTemplate([
+        {
+          label: "Reactivate",
+          visible: isDnd,
+          click: destroyDnd,
+        },
+        {
+          label: "For 1 Hour",
+          visible: true,
+          click: createDnd.bind(null, 60),
+        },
+        {
+          label: "For 2 Hours",
+          visible: true,
+          click: createDnd.bind(null, 120),
+        },
+        {
+          label: "Until tomorrow",
+          visible: true,
+          click: createDnd.bind(null, DND_UNTIL.TOMORROW),
+        },
+      ]),
+    },
     { type: "separator" },
     { label: "Settings...", click: createSettingsWindow },
     { label: "About...", click: createAboutWindow },
     { label: "Quit", click: quit },
-  ]);
+  ];
+
+  const contextMenu = Menu.buildFromTemplate(menuItems);
 
   // Call this again for Linux because we modified the context menu
   tray.setContextMenu(contextMenu);
 }
 
+function checkIfMinsChanged(
+  name: keyof MinutesLeft,
+  current: Moment | null
+): boolean {
+  if (current === null) {
+    return false;
+  }
+  const currentMinsLeft = current.diff(moment(), "seconds");
+  const lastMinsLeft = lastMinsLeftObj[name];
+
+  if (currentMinsLeft !== lastMinsLeft) {
+    lastMinsLeftObj[name] = currentMinsLeft;
+    return true;
+  }
+
+  return false;
+}
+
 export function initTray(): void {
   buildTray();
   setInterval(() => {
-    const breakTime = getBreakTime();
-    if (breakTime === null) {
-      return;
-    }
+    const breakChanged = checkIfMinsChanged("break", getDndTime());
+    const disabledChanged = checkIfMinsChanged("dnd", getDndTime());
 
-    const minsLeft = breakTime.diff(moment(), "minutes");
-    if (minsLeft !== lastMinsLeft) {
+    if (breakChanged || disabledChanged) {
       buildTray();
-      lastMinsLeft = minsLeft;
     }
   }, 5000);
 }
