@@ -191,7 +191,7 @@ function checkIfMinsChanged(
   if (current === null) {
     return false;
   }
-  const currentMinsLeft = current.diff(moment(), "seconds");
+  const currentMinsLeft = current.diff(moment(), "minutes");
   const lastMinsLeft = lastMinsLeftObj[name];
 
   if (currentMinsLeft !== lastMinsLeft) {
@@ -205,9 +205,8 @@ function checkIfMinsChanged(
 export function initTray(): void {
   buildTray();
   setInterval(() => {
-    const breakChanged = checkIfMinsChanged("break", getDndTime());
+    const breakChanged = checkIfMinsChanged("break", getBreakTime());
     const disabledChanged = checkIfMinsChanged("dnd", getDndTime());
-
     if (breakChanged || disabledChanged) {
       buildTray();
     }

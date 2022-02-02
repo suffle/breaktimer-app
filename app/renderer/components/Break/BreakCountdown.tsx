@@ -100,7 +100,7 @@ const BreakCountdown: FC<BreakCountdownProps> = ({
                 outlined
                 style={{ color: textColor }}
               >
-                Dnd
+                DND
               </Button>
             </Popover>
             {skipBreakEnabled && (
